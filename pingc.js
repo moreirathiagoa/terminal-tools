@@ -118,14 +118,23 @@ if (args.includes('-h') || args.includes('--help')) {
 
 // Flags que recebem valor no ping unix
 const UNIX_FLAGS_WITH_VALUE = new Set([
-	'-c', '-i', '-W', '-s', '-t', '-S', '-G', '-g',
-	'-l', '-m', '-p', '-T', '-z',
+	'-c',
+	'-i',
+	'-W',
+	'-s',
+	'-t',
+	'-S',
+	'-G',
+	'-g',
+	'-l',
+	'-m',
+	'-p',
+	'-T',
+	'-z',
 ])
 
 // Flags que recebem valor no ping Windows
-const WIN_FLAGS_WITH_VALUE = new Set([
-	'-n', '-w', '-l', '-i', '-S',
-])
+const WIN_FLAGS_WITH_VALUE = new Set(['-n', '-w', '-l', '-i', '-S'])
 
 function buildPingArgsUnix(args) {
 	const flags = []
