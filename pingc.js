@@ -132,17 +132,30 @@ const FLAGS_WITH_VALUE = new Set([
 	'-z',
 ])
 
-function needsDefaultHost(args) {
-	if (args.length === 0) return true
-	const last = args[args.length - 1]
-	if (last.startsWith('-')) return true
-	const secondToLast = args.length >= 2 ? args[args.length - 2] : null
-	if (FLAGS_WITH_VALUE.has(secondToLast)) return true
-	return false
+function buildPingArgs(args) {
+	// Separa flags (com seus valores) do host.
+	// O host é o argumento posicional que não é flag nem valor de flag.
+	const flags = []
+	let host = null
+
+	for (let idx = 0; idx < args.length; idx++) {
+		const arg = args[idx]
+		if (arg.startsWith('-')) {
+			flags.push(arg)
+			if (FLAGS_WITH_VALUE.has(arg) && idx + 1 < args.length) {
+				flags.push(args[++idx])
+			}
+		} else {
+			// Argumento posicional = host
+			host = arg
+		}
+	}
+
+	if (!host) host = DEFAULT_HOST
+	return [...flags, host]
 }
 
-const pingArgs = [...args]
-if (needsDefaultHost(args)) pingArgs.push(DEFAULT_HOST)
+const pingArgs = buildPingArgs(args)
 
 // ── estado ───────────────────────────────────────────────────────────────────
 let i = 0
