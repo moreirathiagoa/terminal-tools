@@ -412,12 +412,21 @@ function printSummary(partial) {
 	const totalAvgLat = totalLatSum / totalSent
 	const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
 
+	// min/max da janela
+	let winLatMin = Infinity, winLatMax = 0
+	let winJitMin = Infinity, winJitMax = 0
+	for (let j = 0; j < n; j++) {
+		if (windowLat[j] < winLatMin) winLatMin = windowLat[j]
+		if (windowLat[j] > winLatMax) winLatMax = windowLat[j]
+		if (windowJit[j] < winJitMin) winJitMin = windowJit[j]
+		if (windowJit[j] > winJitMax) winJitMax = windowJit[j]
+	}
+
 	process.stdout.write(`\n${SEP}\n${label}\n${SEP}\n`)
-	process.stdout.write(gray(`  ${totalSent} pings | janela: ${n} amostras\n\n`))
-	process.stdout.write(`  Latência:    min ${latMin.toFixed(1)}  avg ${totalAvgLat.toFixed(1)}  max ${latMax.toFixed(1)} ms\n`)
-	process.stdout.write(`               ${gray(`(janela: avg ${avgLat.toFixed(1)} ms)`)}\n`)
-	process.stdout.write(`  Jitter:      min ${jitterMin === Infinity ? '—' : jitterMin.toFixed(2)}  avg ${totalAvgJit.toFixed(2)}  max ${jitterMax.toFixed(2)} ms\n`)
-	process.stdout.write(`               ${gray(`(janela: sd ${stddevJit.toFixed(2)} ms)`)}\n`)
+	process.stdout.write(`  Latência:    ${totalSent} pings:  min ${latMin.toFixed(1)}  avg ${totalAvgLat.toFixed(1)}  max ${latMax.toFixed(1)} ms\n`)
+	process.stdout.write(`               últimos ${n}:   min ${winLatMin.toFixed(1)}  avg ${avgLat.toFixed(1)}  max ${winLatMax.toFixed(1)} ms\n`)
+	process.stdout.write(`  Jitter:      ${totalSent} pings:  min ${jitterMin === Infinity ? '—' : jitterMin.toFixed(2)}  avg ${totalAvgJit.toFixed(2)}  max ${jitterMax.toFixed(2)} ms\n`)
+	process.stdout.write(`               últimos ${n}:   min ${winJitMin.toFixed(2)}  avg ${stddevJit.toFixed(2)}  max ${winJitMax.toFixed(2)} ms\n`)
 	process.stdout.write(`  Packet loss: ${totalLost}/${totalSent} (${lossPct.toFixed(1)}%)\n`)
 
 	const latOk = avgLat < 100
