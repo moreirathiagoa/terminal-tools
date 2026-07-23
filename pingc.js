@@ -203,6 +203,9 @@ let latMax = 0
 let totalSent = 0
 let totalLost = 0
 let idxLoss = 0
+let totalLatSum = 0
+let totalJitSum = 0
+let totalJitCount = 0
 const windowLat = new Array(WIN).fill(0)
 const windowJit = new Array(WIN).fill(0)
 const windowLoss = new Array(WIN).fill(0)
@@ -316,6 +319,7 @@ function updateState(t) {
 
 	if (t < latMin) latMin = t
 	if (t > latMax) latMax = t
+	totalLatSum += t
 
 	// primeiro ping: sem jitter ainda
 	if (prev === 0) {
@@ -327,6 +331,8 @@ function updateState(t) {
 	const d = Math.abs(t - prev)
 	if (d > jitterMax) jitterMax = d
 	if (d < jitterMin) jitterMin = d
+	totalJitSum += d
+	totalJitCount++
 
 	// janela circular
 	windowLat[i % WIN] = t
@@ -403,15 +409,15 @@ function printSummary(partial) {
 	const lossPct = totalSent > 0 ? (totalLost / totalSent) * 100 : 0
 	const SEP = '─────────────────────────────────────────────────────'
 	const label = partial ? 'RESUMO PARCIAL' : 'RESUMO FINAL'
-	const scope = partial
-		? `últimas ${n} amostras de ${totalSent} pings`
-		: `${totalSent} pings`
+	const totalAvgLat = totalLatSum / totalSent
+	const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
 
 	process.stdout.write(`\n${SEP}\n${label}\n${SEP}\n`)
-	process.stdout.write(gray(`  Escopo:      ${scope}\n`))
-	process.stdout.write(gray(`  Nota:        avg e sd são da janela (${n} amostras); min/max são globais\n\n`))
-	process.stdout.write(`  Latência:    min ${latMin.toFixed(1)}  avg ${avgLat.toFixed(1)}  max ${latMax.toFixed(1)} ms\n`)
-	process.stdout.write(`  Jitter:      min ${jitterMin === Infinity ? '—' : jitterMin.toFixed(2)}  avg sd ${stddevJit.toFixed(2)}  max ${jitterMax.toFixed(2)} ms\n`)
+	process.stdout.write(gray(`  ${totalSent} pings | janela: ${n} amostras\n\n`))
+	process.stdout.write(`  Latência:    min ${latMin.toFixed(1)}  avg ${totalAvgLat.toFixed(1)}  max ${latMax.toFixed(1)} ms\n`)
+	process.stdout.write(`               ${gray(`(janela: avg ${avgLat.toFixed(1)} ms)`)}\n`)
+	process.stdout.write(`  Jitter:      min ${jitterMin === Infinity ? '—' : jitterMin.toFixed(2)}  avg ${totalAvgJit.toFixed(2)}  max ${jitterMax.toFixed(2)} ms\n`)
+	process.stdout.write(`               ${gray(`(janela: sd ${stddevJit.toFixed(2)} ms)`)}\n`)
 	process.stdout.write(`  Packet loss: ${totalLost}/${totalSent} (${lossPct.toFixed(1)}%)\n`)
 
 	const latOk = avgLat < 100
