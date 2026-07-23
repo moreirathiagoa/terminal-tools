@@ -197,6 +197,7 @@ let i = 0
 let n = 0
 let prev = 0
 let jitterMax = 0
+let jitterMin = Infinity
 let latMin = Infinity
 let latMax = 0
 let totalSent = 0
@@ -325,6 +326,7 @@ function updateState(t) {
 	// jitter instantâneo
 	const d = Math.abs(t - prev)
 	if (d > jitterMax) jitterMax = d
+	if (d < jitterMin) jitterMin = d
 
 	// janela circular
 	windowLat[i % WIN] = t
@@ -400,18 +402,17 @@ function printSummary(partial) {
 	const { avgLat, stddevJit } = calcStats()
 	const lossPct = totalSent > 0 ? (totalLost / totalSent) * 100 : 0
 	const SEP = '─────────────────────────────────────────────────────'
-	const label = partial ? 'RESUMO PARCIAL' : 'RESUMO DA ANÁLISE'
+	const label = partial ? 'RESUMO PARCIAL' : 'RESUMO FINAL'
+	const scope = partial
+		? `últimas ${n} amostras de ${totalSent} pings`
+		: `${totalSent} pings`
 
-	process.stdout.write(`\n${SEP}\n${label}: (${totalSent} pings)\n${SEP}\n`)
-	process.stdout.write(
-		`Latência:    min / avg / max = ${latMin.toFixed(1)} / ${avgLat.toFixed(1)} / ${latMax.toFixed(1)} ms\n`,
-	)
-	process.stdout.write(
-		`Jitter:      máximo ${jitterMax.toFixed(2)} ms   desvio padrão ${stddevJit.toFixed(2)} ms\n`,
-	)
-	process.stdout.write(
-		`Packet loss: ${totalLost}/${totalSent} (${lossPct.toFixed(1)}%)\n`,
-	)
+	process.stdout.write(`\n${SEP}\n${label}\n${SEP}\n`)
+	process.stdout.write(gray(`  Escopo:      ${scope}\n`))
+	process.stdout.write(gray(`  Nota:        avg e sd são da janela (${n} amostras); min/max são globais\n\n`))
+	process.stdout.write(`  Latência:    min ${latMin.toFixed(1)}  avg ${avgLat.toFixed(1)}  max ${latMax.toFixed(1)} ms\n`)
+	process.stdout.write(`  Jitter:      min ${jitterMin === Infinity ? '—' : jitterMin.toFixed(2)}  avg sd ${stddevJit.toFixed(2)}  max ${jitterMax.toFixed(2)} ms\n`)
+	process.stdout.write(`  Packet loss: ${totalLost}/${totalSent} (${lossPct.toFixed(1)}%)\n`)
 
 	const latOk = avgLat < 100
 	const jitOk = stddevJit < 10
@@ -419,50 +420,50 @@ function printSummary(partial) {
 
 	if (latOk && jitOk && lossOk) {
 		process.stdout.write(
-			`\n${green('✓ EXCELENTE: Conexão estável e responsiva')}\n`,
+			`\n  ${green('✓ EXCELENTE: Conexão estável e responsiva')}\n`,
 		)
 		process.stdout.write(
-			'  → Ideal para: VoIP, videoconferência HD/4K, gaming competitivo\n',
+			'    Ideal para: VoIP, videoconferência HD/4K, gaming competitivo\n',
 		)
 	} else if (avgLat < 100 && stddevJit < 20 && lossPct < 3) {
 		process.stdout.write(
-			`\n${yellow('✓ BOM: Conexão adequada para a maioria dos usos')}\n`,
+			`\n  ${yellow('✓ BOM: Conexão adequada para a maioria dos usos')}\n`,
 		)
 		process.stdout.write(
-			'  → Adequado para: streaming, navegação, videocalls\n',
+			'    Adequado para: streaming, navegação, videocalls\n',
 		)
 	} else {
 		const grade =
 			avgLat >= 200 || stddevJit >= 30 || lossPct >= 5
 				? red('✗ RUIM: Sérios problemas detectados')
 				: yellow('⚠ ACEITÁVEL: Limitações detectadas')
-		process.stdout.write(`\n${grade}\n`)
+		process.stdout.write(`\n  ${grade}\n`)
 		if (avgLat >= 200)
 			process.stdout.write(
-				`  ${red(`✗ Latência muito alta (${avgLat.toFixed(1)} ms)`)}\n`,
+				`    ${red(`✗ Latência muito alta (${avgLat.toFixed(1)} ms)`)}\n`,
 			)
 		else if (avgLat >= 100)
 			process.stdout.write(
-				`  ${yellow(`⚠ Latência elevada (${avgLat.toFixed(1)} ms)`)}\n`,
+				`    ${yellow(`⚠ Latência elevada (${avgLat.toFixed(1)} ms)`)}\n`,
 			)
 		if (stddevJit >= 30)
 			process.stdout.write(
-				`  ${red(`✗ Jitter crítico (${stddevJit.toFixed(2)} ms) — rede instável`)}\n`,
+				`    ${red(`✗ Jitter crítico (${stddevJit.toFixed(2)} ms) — rede instável`)}\n`,
 			)
 		else if (stddevJit >= 10)
 			process.stdout.write(
-				`  ${yellow(`⚠ Jitter elevado (${stddevJit.toFixed(2)} ms)`)}\n`,
+				`    ${yellow(`⚠ Jitter elevado (${stddevJit.toFixed(2)} ms)`)}\n`,
 			)
 		if (lossPct >= 5)
 			process.stdout.write(
-				`  ${red(`✗ Perda de pacotes severa (${lossPct.toFixed(1)}%)`)}\n`,
+				`    ${red(`✗ Perda de pacotes severa (${lossPct.toFixed(1)}%)`)}\n`,
 			)
 		else if (lossPct >= 1)
 			process.stdout.write(
-				`  ${yellow(`⚠ Perda de pacotes detectada (${lossPct.toFixed(1)}%)`)}\n`,
+				`    ${yellow(`⚠ Perda de pacotes detectada (${lossPct.toFixed(1)}%)`)}\n`,
 			)
 		process.stdout.write(
-			'  → Investigar: provedor de internet, roteador, congestionamento\n',
+			'    Investigar: provedor de internet, roteador, congestionamento\n',
 		)
 	}
 	process.stdout.write(`${SEP}\n\n`)
