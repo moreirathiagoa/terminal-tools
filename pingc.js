@@ -15,6 +15,7 @@ const readline = require('readline')
 // ── configuração ─────────────────────────────────────────────────────────────
 const WIN = 20
 const DEFAULT_HOST = '1.1.1.1'
+const IS_WIN = process.platform === 'win32'
 
 // limiares de status por serviço: [ok, warn] para lat, jit, loss
 const THRESHOLDS = {
@@ -107,7 +108,7 @@ TECLAS (durante execução):
   Ctrl+C      → Exibe resumo final e sai
 `.trim()
 
-// ── parse args ───────────────────────────────────────────────────────────────
+// ── parse args (platform-aware) ──────────────────────────────────────────────
 const args = process.argv.slice(2)
 
 if (args.includes('-h') || args.includes('--help')) {
@@ -115,26 +116,18 @@ if (args.includes('-h') || args.includes('--help')) {
 	process.exit(0)
 }
 
-// Detecta se precisa adicionar host default
-const FLAGS_WITH_VALUE = new Set([
-	'-c',
-	'-i',
-	'-W',
-	'-s',
-	'-t',
-	'-S',
-	'-G',
-	'-g',
-	'-l',
-	'-m',
-	'-p',
-	'-T',
-	'-z',
+// Flags que recebem valor no ping unix
+const UNIX_FLAGS_WITH_VALUE = new Set([
+	'-c', '-i', '-W', '-s', '-t', '-S', '-G', '-g',
+	'-l', '-m', '-p', '-T', '-z',
 ])
 
-function buildPingArgs(args) {
-	// Separa flags (com seus valores) do host.
-	// O host é o argumento posicional que não é flag nem valor de flag.
+// Flags que recebem valor no ping Windows
+const WIN_FLAGS_WITH_VALUE = new Set([
+	'-n', '-w', '-l', '-i', '-S',
+])
+
+function buildPingArgsUnix(args) {
 	const flags = []
 	let host = null
 
@@ -142,11 +135,10 @@ function buildPingArgs(args) {
 		const arg = args[idx]
 		if (arg.startsWith('-')) {
 			flags.push(arg)
-			if (FLAGS_WITH_VALUE.has(arg) && idx + 1 < args.length) {
+			if (UNIX_FLAGS_WITH_VALUE.has(arg) && idx + 1 < args.length) {
 				flags.push(args[++idx])
 			}
 		} else {
-			// Argumento posicional = host
 			host = arg
 		}
 	}
@@ -155,7 +147,41 @@ function buildPingArgs(args) {
 	return [...flags, host]
 }
 
-const pingArgs = buildPingArgs(args)
+function buildPingArgsWindows(args) {
+	const flags = []
+	let host = null
+
+	for (let idx = 0; idx < args.length; idx++) {
+		const arg = args[idx]
+		if (arg.startsWith('-')) {
+			// Traduz flags unix comuns para equivalentes Windows
+			if (arg === '-c' && idx + 1 < args.length) {
+				flags.push('-n')
+				flags.push(args[++idx])
+			} else if (arg === '-W' && idx + 1 < args.length) {
+				// -W timeout (s) → -w timeout (ms)
+				flags.push('-w')
+				flags.push(String(parseFloat(args[++idx]) * 1000))
+			} else {
+				flags.push(arg)
+				if (WIN_FLAGS_WITH_VALUE.has(arg) && idx + 1 < args.length) {
+					flags.push(args[++idx])
+				}
+			}
+		} else {
+			host = arg
+		}
+	}
+
+	if (!host) host = DEFAULT_HOST
+	// Windows: ping contínuo precisa de -t (não tem -c equivalente ao infinito)
+	if (!flags.includes('-n') && !flags.includes('-t')) {
+		flags.push('-t')
+	}
+	return [...flags, host]
+}
+
+const pingArgs = IS_WIN ? buildPingArgsWindows(args) : buildPingArgsUnix(args)
 
 // ── estado ───────────────────────────────────────────────────────────────────
 let i = 0
@@ -229,8 +255,8 @@ function pad(num, width, decimals) {
 	return num.toFixed(decimals).padStart(width)
 }
 
-// ── processamento de linha ───────────────────────────────────────────────────
-function parsePingLine(line) {
+// ── parsers por plataforma ───────────────────────────────────────────────────
+function parsePingLineUnix(line) {
 	const seqMatch = line.match(/icmp_seq=(\d+)/)
 	const timeMatch = line.match(/time=([\d.]+)/)
 	if (!timeMatch) return null
@@ -240,6 +266,40 @@ function parsePingLine(line) {
 	}
 }
 
+function parsePingLineWindows(line) {
+	// "Reply from 8.8.8.8: bytes=32 time=12ms TTL=116"
+	// "Reply from 8.8.8.8: bytes=32 time<1ms TTL=116"
+	const timeMatch = line.match(/time[=<]([\d.]+)\s*ms/)
+	if (!timeMatch) return null
+	// Windows não mostra seq, extraímos do contador
+	return {
+		seq: String(totalSent + 1),
+		t: parseFloat(timeMatch[1]),
+	}
+}
+
+function isTimeoutUnix(line) {
+	return /Request timeout|no answer/.test(line)
+}
+
+function isTimeoutWindows(line) {
+	return /Request timed out|General failure/.test(line)
+}
+
+function isSummaryLine(line) {
+	if (IS_WIN) return /Ping statistics for/.test(line)
+	return /^---/.test(line)
+}
+
+function isResponseLine(line) {
+	if (IS_WIN) return /time[=<]/.test(line)
+	return /time=/.test(line)
+}
+
+const parsePingLine = IS_WIN ? parsePingLineWindows : parsePingLineUnix
+const isTimeout = IS_WIN ? isTimeoutWindows : isTimeoutUnix
+
+// ── processamento de linha ───────────────────────────────────────────────────
 function updateState(t) {
 	totalSent++
 	windowLoss[idxLoss++ % WIN] = 0
@@ -410,11 +470,11 @@ const ping = spawn('ping', pingArgs, { stdio: ['ignore', 'pipe', 'pipe'] })
 const rl = readline.createInterface({ input: ping.stdout })
 
 rl.on('line', (line) => {
-	if (/time=/.test(line)) {
+	if (isResponseLine(line)) {
 		processResponse(line)
-	} else if (/Request timeout|no answer/.test(line)) {
+	} else if (isTimeout(line)) {
 		processTimeout()
-	} else if (/^---/.test(line)) {
+	} else if (isSummaryLine(line)) {
 		processSummary(line)
 	} else {
 		process.stdout.write(line + '\n')
