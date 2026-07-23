@@ -8,7 +8,7 @@ Ferramentas CLI pessoais para produtividade no terminal. Todas rodam com Node.js
 git clone git@github.com:moreirathiagoa/terminal-tools.git ~/_dev/_/_zsh-tools
 ```
 
-No `~/.zshrc`, adicione os aliases:
+No `~/.zshrc` (macOS/Linux), adicione os aliases:
 
 ```bash
 alias histdevsync='$HOME/_dev/_/_zsh-tools/histdevsync.js'
@@ -25,15 +25,28 @@ Requisito: Node.js (qualquer versão recente).
 
 Ping com análise de latência e jitter em tempo real. Monitora qualidade de rede durante calls, detecta impacto de downloads concorrentes.
 
+Funciona em macOS, Linux, Android (Termux) e Windows. Detecta a plataforma automaticamente e adapta parsing e flags do ping.
+
 ```bash
 pingc                     # pinga 1.1.1.1 (default)
 pingc -c 50 google.com   # 50 pings com resumo final
+pingc -i 0.5 8.8.8.8     # intervalo de 0.5s
 pingc -h                  # help completo
 ```
 
-Exibe: latência, spike (▲/▼), tendência (↑/↓), jitter, desvio padrão, e adequação para videocall/streaming/gaming.
+Métricas exibidas em tempo real:
+- Latência instantânea e média (janela deslizante de 20 amostras)
+- Spike (▲ degradação / ▼ melhoria) quando latência desvia >2x da média
+- Tendência (↑/↓/─) comparando metades da janela
+- Jitter (desvio padrão) com status colorido
+- Adequação para videocall, streaming e gaming
+- Packet loss acumulado
 
-Teclas durante execução: `Enter` = resumo parcial, `h` = legenda, `Ctrl+C` = resumo + sai, `Ctrl+D` = sai.
+Teclas durante execução:
+- `Enter` — resumo parcial (continua rodando)
+- `h` — legenda dos ícones
+- `Ctrl+C` — resumo final e sai
+- `Ctrl+D` — sai sem resumo
 
 ### histdevsync
 
