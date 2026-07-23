@@ -217,26 +217,27 @@ function pad(num, width, decimals) {
 }
 
 // ── processamento de linha ───────────────────────────────────────────────────
-function processResponse(line) {
-	totalSent++
-	windowLoss[idxLoss++ % WIN] = 0
-
+function parsePingLine(line) {
 	const seqMatch = line.match(/icmp_seq=(\d+)/)
 	const timeMatch = line.match(/time=([\d.]+)/)
-	if (!timeMatch) return
+	if (!timeMatch) return null
+	return {
+		seq: seqMatch ? seqMatch[1] : '?',
+		t: parseFloat(timeMatch[1]),
+	}
+}
 
-	const seq = seqMatch ? seqMatch[1] : '?'
-	const t = parseFloat(timeMatch[1])
+function updateState(t) {
+	totalSent++
+	windowLoss[idxLoss++ % WIN] = 0
 
 	if (t < latMin) latMin = t
 	if (t > latMax) latMax = t
 
-	const now = ts()
-
 	// primeiro ping: sem jitter ainda
 	if (prev === 0) {
 		prev = t
-		return
+		return null
 	}
 
 	// jitter instantâneo
@@ -249,16 +250,23 @@ function processResponse(line) {
 	i++
 	n = Math.min(i, WIN)
 
-	// estatísticas
 	const { avgLat, stddevJit } = calcStats()
+	const winLossPct = calcWinLossPct()
+
+	prev = t
+
+	return { d, avgLat, stddevJit, winLossPct }
+}
+
+function formatLine(seq, t, metrics) {
+	const { d, avgLat, stddevJit, winLossPct } = metrics
+	const now = ts()
+
 	const spike = calcSpike(t, avgLat)
 	const trend = calcTrend()
 
-	// loss
-	const winLossPct = calcWinLossPct()
 	const lossStr = totalLost > 0 ? ` loss:${totalLost}` : ''
 
-	// status
 	const latSt =
 		avgLat < 50
 			? green('✓')
@@ -276,16 +284,19 @@ function processResponse(line) {
 					? yellow('⚠')
 					: red('✗')
 
-	// serviços
 	const vc = useStatus(avgLat, stddevJit, winLossPct, THRESHOLDS.vid)
 	const st = useStatus(avgLat, stddevJit, winLossPct, THRESHOLDS.str)
 	const gm = useStatus(avgLat, stddevJit, winLossPct, THRESHOLDS.game)
 
-	process.stdout.write(
-		`#${seq.padStart(4)}  ${now} | lat:${pad(t, 6, 1)}ms ${spike} ${trend} avg:${pad(avgLat, 6, 1)} ${latSt} | jit:${pad(d, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossStr} | vid:${vc} str:${st} game:${gm}\n`,
-	)
+	return `#${seq.padStart(4)}  ${now} | lat:${pad(t, 6, 1)}ms ${spike} ${trend} avg:${pad(avgLat, 6, 1)} ${latSt} | jit:${pad(d, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossStr} | vid:${vc} str:${st} game:${gm}\n`
+}
 
-	prev = t
+function processResponse(line) {
+	const parsed = parsePingLine(line)
+	if (!parsed) return
+	const metrics = updateState(parsed.t)
+	if (!metrics) return
+	process.stdout.write(formatLine(parsed.seq, parsed.t, metrics))
 }
 
 function processTimeout() {
@@ -409,34 +420,40 @@ if (process.stdin.isTTY) {
 	process.stdin.resume()
 	process.stdin.on('data', (key) => {
 		const ch = key.toString()
-		if (ch === '\x03') {
-			// Ctrl+C → mata o ping (que vai imprimir stats e disparar processSummary)
-			ping.kill('SIGINT')
-		} else if (ch === '\x04') {
-			// Ctrl+D → sai direto sem resumo
-			ping.kill('SIGTERM')
-			process.exit(0)
-		} else if (ch === '\r' || ch === '\n') {
-			// Enter → resumo parcial, continua rodando
-			printSummary(true)
-		} else if (ch === 'h' || ch === 'H') {
-			// h → legenda dos ícones
-			process.stdout.write(
-				[
-					'',
-					gray('─── LEGENDA ────────────────────────────────────────'),
-					`  ${red('▲')} Spike: latência > 2x a média (degradação)`,
-					`  ${green('▼')} Spike: latência < metade da média (melhoria)`,
-					`  ${red('↑')} Tendência de subida (>20%)   ${green('↓')} Descida   ${gray('-')} Estável`,
-					`  ${green('✓')} Bom   ${yellow('⚠')} Aceitável   ${red('✗')} Ruim`,
-					'',
-					'  vid = videocall   str = streaming   game = gaming',
-					'',
-					gray('  Enter=resumo  Ctrl+D=sair  h=esta legenda'),
-					gray('───────────────────────────────────────────────────'),
-					'',
-				].join('\n'),
-			)
+		switch (ch) {
+			case '\x03':
+				// Ctrl+C → mata o ping (que vai imprimir stats e disparar processSummary)
+				ping.kill('SIGINT')
+				break
+			case '\x04':
+				// Ctrl+D → sai direto sem resumo
+				ping.kill('SIGTERM')
+				process.exit(0)
+			case '\r':
+			case '\n':
+				// Enter → resumo parcial, continua rodando
+				printSummary(true)
+				break
+			case 'h':
+			case 'H':
+				// h → legenda dos ícones
+				process.stdout.write(
+					[
+						'',
+						gray('─── LEGENDA ────────────────────────────────────────'),
+						`  ${red('▲')} Spike: latência > 2x a média (degradação)`,
+						`  ${green('▼')} Spike: latência < metade da média (melhoria)`,
+						`  ${red('↑')} Tendência de subida (>20%)   ${green('↓')} Descida   ${gray('-')} Estável`,
+						`  ${green('✓')} Bom   ${yellow('⚠')} Aceitável   ${red('✗')} Ruim`,
+						'',
+						'  vid = videocall   str = streaming   game = gaming',
+						'',
+						gray('  Enter=resumo  Ctrl+D=sair  h=esta legenda'),
+						gray('───────────────────────────────────────────────────'),
+						'',
+					].join('\n'),
+				)
+				break
 		}
 	})
 } else {
