@@ -423,36 +423,22 @@ function printSummary(partial) {
 		const totalSdJit = Math.sqrt(totalVarJit)
 		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
 		const now = ts()
-
-		const latSt =
-			totalAvgLat < 50
-				? green('✓')
-				: totalAvgLat < 100
-					? yellow('✓')
-					: totalAvgLat < 200
-						? yellow('⚠')
-						: red('✗')
-		const jitSt =
-			totalSdJit < 5
-				? green('✓')
-				: totalSdJit < 10
-					? yellow('✓')
-					: totalSdJit < 30
-						? yellow('⚠')
-						: red('✗')
-
 		const winLossPct = calcWinLossPct()
-		const vc = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.vid)
-		const st = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.str)
-		const gm = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.game)
 
 		const jitMin = jitterMin === Infinity ? 0 : jitterMin
 
+		// ícones sem cor (a linha toda será cyan)
+		const latIcon = totalAvgLat < 50 ? '✓' : totalAvgLat < 100 ? '✓' : totalAvgLat < 200 ? '⚠' : '✗'
+		const jitIcon = totalSdJit < 5 ? '✓' : totalSdJit < 10 ? '✓' : totalSdJit < 30 ? '⚠' : '✗'
+		const vcIcon = (totalAvgLat < 100 && totalSdJit < 15 && winLossPct < 1) ? '✓' : (totalAvgLat < 200 && totalSdJit < 30 && winLossPct < 2) ? '⚠' : '✗'
+		const stIcon = (totalAvgLat < 250 && totalSdJit < 40 && winLossPct < 1.5) ? '✓' : (totalAvgLat < 400 && totalSdJit < 60 && winLossPct < 3) ? '⚠' : '✗'
+		const gmIcon = (totalAvgLat < 40 && totalSdJit < 5 && winLossPct < 0.5) ? '✓' : (totalAvgLat < 80 && totalSdJit < 12 && winLossPct < 1.5) ? '⚠' : '✗'
+
 		const line = [
 			`> ${totalSent} pings  ${now}`,
-			`| lat:${pad(latMin, 5, 1)} ${pad(totalAvgLat, 5, 1)} ${pad(latMax, 5, 1)} ${latSt}`,
-			`| jit:${pad(jitMin, 5, 2)} ${pad(totalSdJit, 5, 2)} ${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel}`,
-			`| vid:${vc} str:${st} game:${gm}`,
+			`| lat:${pad(latMin, 5, 1)} ${pad(totalAvgLat, 5, 1)} ${pad(latMax, 5, 1)} ${latIcon}`,
+			`| jit:${pad(jitMin, 5, 2)} ${pad(totalSdJit, 5, 2)} ${pad(jitterMax, 5, 2)} ${jitIcon}${lossLabel}`,
+			`| vid:${vcIcon} str:${stIcon} game:${gmIcon}`,
 		].join(' ')
 
 		process.stdout.write(`\n${cyan(line)}\n\n`)
