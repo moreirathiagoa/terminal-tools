@@ -414,6 +414,7 @@ function printSummary(partial) {
 	if (partial) {
 		const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
 		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
+		const now = ts()
 
 		const latSt = totalAvgLat < 50 ? green('✓') : totalAvgLat < 100 ? yellow('✓') : totalAvgLat < 200 ? yellow('⚠') : red('✗')
 		const jitSt = totalAvgJit < 5 ? green('✓') : totalAvgJit < 10 ? yellow('✓') : totalAvgJit < 30 ? yellow('⚠') : red('✗')
@@ -424,7 +425,7 @@ function printSummary(partial) {
 		const gm = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.game)
 
 		process.stdout.write(
-			gray(`── total ${totalSent} `) + `| lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n`,
+			`#${String(totalSent).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n`,
 		)
 		return
 	}
