@@ -425,7 +425,7 @@ function printSummary(partial) {
 		const gm = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.game)
 
 		process.stdout.write(
-			`#${String(totalSent).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n`,
+			`\n>${String(totalSent-1).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
 		)
 		return
 	}
