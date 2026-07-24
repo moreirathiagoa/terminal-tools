@@ -410,10 +410,21 @@ function printSummary(partial) {
 	const totalAvgLat = totalLatSum / totalSent
 	const lossStr = totalLost > 0 ? `  loss:${totalLost}/${totalSent}(${lossPct.toFixed(1)}%)` : ''
 
-	// parcial: 1 linha compacta
+	// parcial: mesma formatação de uma linha de ping, mas com valores totais
 	if (partial) {
+		const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
+		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
+
+		const latSt = totalAvgLat < 50 ? green('✓') : totalAvgLat < 100 ? yellow('✓') : totalAvgLat < 200 ? yellow('⚠') : red('✗')
+		const jitSt = totalAvgJit < 5 ? green('✓') : totalAvgJit < 10 ? yellow('✓') : totalAvgJit < 30 ? yellow('⚠') : red('✗')
+
+		const winLossPct = calcWinLossPct()
+		const vc = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.vid)
+		const st = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.str)
+		const gm = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.game)
+
 		process.stdout.write(
-			gray(`  ── ${totalSent} pings: lat avg:${totalAvgLat.toFixed(1)} [${latMin.toFixed(1)}~${latMax.toFixed(1)}]  jit sd:${stddevJit.toFixed(1)} [${jitterMin === Infinity ? '—' : jitterMin.toFixed(1)}~${jitterMax.toFixed(1)}]${lossStr} ──\n`),
+			gray(`── total ${totalSent} `) + `| lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n`,
 		)
 		return
 	}
