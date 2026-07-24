@@ -30,6 +30,7 @@ const green = (s) => clr(32, s)
 const yellow = (s) => clr(33, s)
 const red = (s) => clr(31, s)
 const gray = (s) => clr(37, s)
+const cyan = (s) => clr(36, s)
 
 function useStatus(lat, jit, loss, th) {
 	if (lat < th.lat[0] && jit < th.jit[0] && loss < th.loss[0]) return green('✓')
@@ -430,7 +431,7 @@ function printSummary(partial) {
 		const gm = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.game)
 
 		process.stdout.write(
-			`\n>${String(totalSent).padStart(4)}  ${now} | lat: ${pad(latMin, 5, 1)}/${pad(totalAvgLat, 5, 1)}/${pad(latMax, 5, 1)} ${latSt} | jit: ${pad(jitterMin === Infinity ? 0 : jitterMin, 5, 2)}/${pad(totalSdJit, 5, 2)}/${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
+			cyan(`\n>${String(totalSent).padStart(4)}  ${now} | lat: ${pad(latMin, 5, 1)}/${pad(totalAvgLat, 5, 1)}/${pad(latMax, 5, 1)} ${latSt} | jit: ${pad(jitterMin === Infinity ? 0 : jitterMin, 5, 2)}/${pad(totalSdJit, 5, 2)}/${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}`) + '\n\n',
 		)
 		return
 	}
