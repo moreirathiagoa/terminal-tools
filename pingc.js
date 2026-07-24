@@ -412,7 +412,7 @@ function printSummary(partial) {
 	const totalAvgLat = totalLatSum / totalSent
 	const lossStr = totalLost > 0 ? `  loss:${totalLost}/${totalSent}(${lossPct.toFixed(1)}%)` : ''
 
-	// parcial: mesma formatação de uma linha de ping, mas com valores totais
+	// parcial: mesma formatação de uma linha de ping, mas com valores totais desde o início
 	if (partial) {
 		const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
 		let totalVarJit = totalJitCount > 0 ? (totalJitSumsq / totalJitCount) - (totalAvgJit * totalAvgJit) : 0
@@ -430,7 +430,7 @@ function printSummary(partial) {
 		const gm = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.game)
 
 		process.stdout.write(
-			`\n>${String(totalSent).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(totalSdJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
+			`\n>${String(totalSent).padStart(4)}  ${now} | lat: ${pad(latMin, 5, 1)}/${pad(totalAvgLat, 5, 1)}/${pad(latMax, 5, 1)} ${latSt} | jit: ${pad(jitterMin === Infinity ? 0 : jitterMin, 5, 2)}/${pad(totalSdJit, 5, 2)}/${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
 		)
 		return
 	}
