@@ -205,6 +205,7 @@ let totalLost = 0
 let idxLoss = 0
 let totalLatSum = 0
 let totalJitSum = 0
+let totalJitSumsq = 0
 let totalJitCount = 0
 const windowLat = new Array(WIN).fill(0)
 const windowJit = new Array(WIN).fill(0)
@@ -332,6 +333,7 @@ function updateState(t) {
 	if (d > jitterMax) jitterMax = d
 	if (d < jitterMin) jitterMin = d
 	totalJitSum += d
+	totalJitSumsq += d * d
 	totalJitCount++
 
 	// janela circular
@@ -413,19 +415,22 @@ function printSummary(partial) {
 	// parcial: mesma formatação de uma linha de ping, mas com valores totais
 	if (partial) {
 		const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
+		let totalVarJit = totalJitCount > 0 ? (totalJitSumsq / totalJitCount) - (totalAvgJit * totalAvgJit) : 0
+		if (totalVarJit < 0) totalVarJit = 0
+		const totalSdJit = Math.sqrt(totalVarJit)
 		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
 		const now = ts()
 
 		const latSt = totalAvgLat < 50 ? green('✓') : totalAvgLat < 100 ? yellow('✓') : totalAvgLat < 200 ? yellow('⚠') : red('✗')
-		const jitSt = totalAvgJit < 5 ? green('✓') : totalAvgJit < 10 ? yellow('✓') : totalAvgJit < 30 ? yellow('⚠') : red('✗')
+		const jitSt = totalSdJit < 5 ? green('✓') : totalSdJit < 10 ? yellow('✓') : totalSdJit < 30 ? yellow('⚠') : red('✗')
 
 		const winLossPct = calcWinLossPct()
-		const vc = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.vid)
-		const st = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.str)
-		const gm = useStatus(totalAvgLat, totalAvgJit, winLossPct, THRESHOLDS.game)
+		const vc = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.vid)
+		const st = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.str)
+		const gm = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.game)
 
 		process.stdout.write(
-			`\n>${String(totalSent-1).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(stddevJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
+			`\n>${String(totalSent).padStart(4)}  ${now} | lat:${pad(totalAvgLat, 6, 1)}ms     avg:${pad(totalAvgLat, 6, 1)} ${latSt} | jit:${pad(totalAvgJit, 5, 1)}  sd:${pad(totalSdJit, 4, 1)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
 		)
 		return
 	}
