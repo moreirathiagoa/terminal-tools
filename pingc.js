@@ -415,14 +415,31 @@ function printSummary(partial) {
 	// parcial: formato parecido com a linha normal, usando valores totais desde o início
 	if (partial) {
 		const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
-		let totalVarJit = totalJitCount > 0 ? (totalJitSumsq / totalJitCount) - (totalAvgJit * totalAvgJit) : 0
+		let totalVarJit =
+			totalJitCount > 0
+				? totalJitSumsq / totalJitCount - totalAvgJit * totalAvgJit
+				: 0
 		if (totalVarJit < 0) totalVarJit = 0
 		const totalSdJit = Math.sqrt(totalVarJit)
 		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
 		const now = ts()
 
-		const latSt = totalAvgLat < 50 ? green('✓') : totalAvgLat < 100 ? yellow('✓') : totalAvgLat < 200 ? yellow('⚠') : red('✗')
-		const jitSt = totalSdJit < 5 ? green('✓') : totalSdJit < 10 ? yellow('✓') : totalSdJit < 30 ? yellow('⚠') : red('✗')
+		const latSt =
+			totalAvgLat < 50
+				? green('✓')
+				: totalAvgLat < 100
+					? yellow('✓')
+					: totalAvgLat < 200
+						? yellow('⚠')
+						: red('✗')
+		const jitSt =
+			totalSdJit < 5
+				? green('✓')
+				: totalSdJit < 10
+					? yellow('✓')
+					: totalSdJit < 30
+						? yellow('⚠')
+						: red('✗')
 
 		const winLossPct = calcWinLossPct()
 		const vc = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.vid)
@@ -431,9 +448,14 @@ function printSummary(partial) {
 
 		const jitMin = jitterMin === Infinity ? 0 : jitterMin
 
-		process.stdout.write(
-			`\n${cyan(`>${String(totalSent).padStart(4)}  ${now}`)} | lat:${pad(latMin, 5, 1)}/${pad(totalAvgLat, 5, 1)}/${pad(latMax, 5, 1)} ${latSt} | jit:${pad(jitMin, 5, 2)}/${pad(totalSdJit, 5, 2)}/${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel} | vid:${vc} str:${st} game:${gm}\n\n`,
-		)
+		const line = [
+			`> ${totalSent} pings  ${now}`,
+			`| lat:${pad(latMin, 5, 1)} ${pad(totalAvgLat, 5, 1)} ${pad(latMax, 5, 1)} ${latSt}`,
+			`| jit:${pad(jitMin, 5, 2)} ${pad(totalSdJit, 5, 2)} ${pad(jitterMax, 5, 2)} ${jitSt}${lossLabel}`,
+			`| vid:${vc} str:${st} game:${gm}`,
+		].join(' ')
+
+		process.stdout.write(`\n${cyan(line)}\n\n`)
 		return
 	}
 
@@ -442,8 +464,10 @@ function printSummary(partial) {
 	const totalAvgJit = totalJitCount > 0 ? totalJitSum / totalJitCount : 0
 
 	// min/max da janela
-	let winLatMin = Infinity, winLatMax = 0
-	let winJitMin = Infinity, winJitMax = 0
+	let winLatMin = Infinity,
+		winLatMax = 0
+	let winJitMin = Infinity,
+		winJitMax = 0
 	for (let j = 0; j < n; j++) {
 		if (windowLat[j] < winLatMin) winLatMin = windowLat[j]
 		if (windowLat[j] > winLatMax) winLatMax = windowLat[j]
