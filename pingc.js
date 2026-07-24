@@ -422,26 +422,24 @@ function printSummary(partial) {
 		if (totalVarJit < 0) totalVarJit = 0
 		const totalSdJit = Math.sqrt(totalVarJit)
 		const lossLabel = totalLost > 0 ? ` loss:${totalLost}` : ''
-		const now = ts()
 		const winLossPct = calcWinLossPct()
 
 		const jitMin = jitterMin === Infinity ? 0 : jitterMin
 
-		// ícones sem cor (a linha toda será cyan)
-		const latIcon = totalAvgLat < 50 ? '✓' : totalAvgLat < 100 ? '✓' : totalAvgLat < 200 ? '⚠' : '✗'
-		const jitIcon = totalSdJit < 5 ? '✓' : totalSdJit < 10 ? '✓' : totalSdJit < 30 ? '⚠' : '✗'
-		const vcIcon = (totalAvgLat < 100 && totalSdJit < 15 && winLossPct < 1) ? '✓' : (totalAvgLat < 200 && totalSdJit < 30 && winLossPct < 2) ? '⚠' : '✗'
-		const stIcon = (totalAvgLat < 250 && totalSdJit < 40 && winLossPct < 1.5) ? '✓' : (totalAvgLat < 400 && totalSdJit < 60 && winLossPct < 3) ? '⚠' : '✗'
-		const gmIcon = (totalAvgLat < 40 && totalSdJit < 5 && winLossPct < 0.5) ? '✓' : (totalAvgLat < 80 && totalSdJit < 12 && winLossPct < 1.5) ? '⚠' : '✗'
+		// ícones com cor própria
+		const latSt = totalAvgLat < 50 ? green('✓') : totalAvgLat < 100 ? yellow('✓') : totalAvgLat < 200 ? yellow('⚠') : red('✗')
+		const jitSt = totalSdJit < 5 ? green('✓') : totalSdJit < 10 ? yellow('✓') : totalSdJit < 30 ? yellow('⚠') : red('✗')
+		const vc = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.vid)
+		const st = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.str)
+		const gm = useStatus(totalAvgLat, totalSdJit, winLossPct, THRESHOLDS.game)
 
-		const line = [
-			`> ${totalSent} pings  ${now}`,
-			`| lat:${pad(latMin, 5, 1)} ${pad(totalAvgLat, 5, 1)} ${pad(latMax, 5, 1)} ${latIcon}`,
-			`| jit:${pad(jitMin, 5, 2)} ${pad(totalSdJit, 5, 2)} ${pad(jitterMax, 5, 2)} ${jitIcon}${lossLabel}`,
-			`| vid:${vcIcon} str:${stIcon} game:${gmIcon}`,
-		].join(' ')
+		// cyan no texto, ícones com sua cor, cyan retomado após cada ícone
+		const C = '\x1b[36m'
+		const R = '\x1b[0m'
 
-		process.stdout.write(`\n${cyan(line)}\n\n`)
+		process.stdout.write(
+			`\n${C}> ${totalSent} pings | lat: min:${pad(latMin, 5, 1)} avg:${pad(totalAvgLat, 5, 1)} max:${pad(latMax, 5, 1)} ${R}${latSt}${C} | jit: min:${pad(jitMin, 5, 2)} sd:${pad(totalSdJit, 5, 2)} max:${pad(jitterMax, 5, 2)} ${R}${jitSt}${C}${lossLabel} | vid:${R}${vc}${C} str:${R}${st}${C} game:${R}${gm}\n\n`,
+		)
 		return
 	}
 
