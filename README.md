@@ -50,15 +50,20 @@ Teclas durante execução:
 
 ### histdevsync
 
-Sincroniza atalhos de abertura de projetos no histórico do zsh. Para cada projeto em `~/_dev`, adiciona `kiro ~/_dev/<nome>/` e `code ~/_dev/<nome>/` ao histórico.
+Sincroniza atalhos de abertura de projetos no histórico do zsh. Para cada projeto em `~/_dev`, garante que `kiro ~/_dev/<nome>/` e `code ~/_dev/<nome>/` estejam no histórico.
+
+Deduplica na própria escrita: só anexa os comandos que ainda não existem (comparando por comando, ignorando o cabeçalho de extended-history `: <epoch>:<dur>;`). Não é mais preciso rodar `reload` só para remover duplicatas.
 
 ```bash
-histdevsync
+histdevsync            # usa ~/_dev
+histdevsync /outro/dir # base alternativa
 ```
 
 ### histpop
 
-Remove o último comando do histórico do zsh.
+Remove o último comando "real" do histórico do zsh (o penúltimo item, já que o próprio `histpop` foi gravado como último).
+
+Opera por comando lógico: agrupa continuações multi-linha (linha terminada em `\`) e remove o comando inteiro, sem deixar fragmentos. Preserva os bytes originais das demais entradas.
 
 ```bash
 histpop
@@ -66,18 +71,30 @@ histpop
 
 ### histpurge
 
-Limpa comandos antigos do histórico, mantendo os N mais recentes por prefixo configurado.
+Limpa comandos antigos do histórico, mantendo os N mais recentes por prefixo configurado (default: 50). Útil para podar ruído de alta frequência sem perder comandos que você reusa.
+
+Detalhes de robustez:
+- Opera por **comando lógico**: agrupa continuações multi-linha (`\`) e entende o formato extended-history (`: <epoch>:<dur>;cmd`).
+- O prefixo especial `#` remove comentários que são o **topo** de um comando — nunca uma linha de comentário interna a um comando multi-linha (que quebraria o comando).
+- Preserva os bytes originais (inclusive o formato "metafied" do zsh para acentos).
+
+Os prefixos default miram ruído descartável (`sleep`, `ls`, `cat`, `cd`, `grep`, `git add`, `git status`, `yarn verify`, `gh run`, `docker`, `curl`, ...) e deliberadamente **não** incluem `git commit`/`push`/`checkout`/`merge`, que você pode querer recuperar exatos.
 
 ```bash
-histpurge           # usa defaults
-histpurge 30 git    # mantém 30 últimos comandos git
+histpurge              # usa defaults (keep=50 + lista de prefixos)
+histpurge 30 git yarn  # mantém 30 últimos comandos que começam com 'git' ou 'yarn'
 ```
 
 ### xcurl
 
-curl simplificado com saída JSON formatada.
+Cliente HTTP simplificado (Node `fetch`, sem depender de `curl`/`jq`) com saída JSON formatada e colorida por tipo. Ideal para APIs JSON do dia a dia.
 
 ```bash
 xcurl https://api.example.com/data
-xcurl -X POST -d '{"key":"val"}' https://api.example.com
+xcurl -X POST -H "Authorization: Bearer x" -d '{"key":"val"}' https://api.example.com
 ```
+
+Comportamento:
+- Coloriza JSON no terminal; em pipe/arquivo a saída sai limpa (sem cor).
+- Saída longa (mais de 40 linhas) passa por `less` no terminal, com fallback para impressão direta se o `less` não existir.
+- Entende apenas `-X`, `-H`, `-d`. Ao receber outra flag (ex.: `-u`, `-F`, `-L`, `--data-urlencode`, `-k`), **aborta com erro** e sugere o `scurl` — que é um wrapper do `curl` real e herda todas as flags. Assim os papéis ficam claros: `xcurl` para o caso simples, `scurl` para o request completo.

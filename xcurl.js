@@ -23,6 +23,7 @@ const headers = {
   "Content-Type": "application/json",
 };
 let url;
+const unknownFlags = [];
 
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -36,9 +37,27 @@ for (let i = 0; i < args.length; i++) {
     }
   } else if (a === "-d") {
     body = args[++i];
+  } else if (a.startsWith("-")) {
+    // Flag não suportada: o xcurl só entende -X, -H, -d. Em vez de tratá-la
+    // silenciosamente como URL (comportamento confuso), avisa. Para requests
+    // que precisam de flags do curl (-u, -F, -L, --data-urlencode, -k...),
+    // use o `scurl`, que é um wrapper do curl real.
+    unknownFlags.push(a);
   } else {
     url = a;
   }
+}
+
+// Flags não suportadas tornam o parsing ambíguo (o argumento da flag pode ser
+// confundido com a URL). Em vez de adivinhar e fazer um request errado, aborta
+// com uma mensagem clara apontando o scurl, que é um wrapper do curl real.
+if (unknownFlags.length > 0) {
+  console.error(
+    `erro: flag(s) não suportada(s) pelo xcurl: ${unknownFlags.join(", ")}\n` +
+      `      xcurl entende apenas -X, -H, -d. Para flags do curl (-u, -F, -L,\n` +
+      `      --data-urlencode, -k, ...), use o scurl (wrapper do curl real).`
+  );
+  process.exit(1);
 }
 
 if (!url) {
@@ -75,6 +94,27 @@ function colorizeJson(str) {
   );
 }
 
+// Limite de linhas a partir do qual, no terminal, a saída passa por um pager.
+const PAGER_THRESHOLD = 40;
+
+// Exibe o conteúdo: no TTY, se for grande, usa `less -R` (rola/sai com q);
+// senão imprime direto. Fora do TTY (pipe/arquivo) sempre imprime direto.
+function output(content) {
+  const lineCount = content.split("\n").length;
+  if (process.stdout.isTTY && lineCount > PAGER_THRESHOLD) {
+    const { spawnSync } = require("node:child_process");
+    // -R preserva as cores ANSI; -F sai se couber numa tela; -X não limpa a tela.
+    const r = spawnSync("less", ["-R", "-F", "-X"], {
+      input: content,
+      stdio: ["pipe", "inherit", "inherit"],
+    });
+    // Se o less não existir (ENOENT) ou falhar ao spawnar, cai pro print direto.
+    if (r.error) console.log(content);
+  } else {
+    console.log(content);
+  }
+}
+
 (async () => {
   try {
     const res = await fetch(url, { method, headers, body });
@@ -86,10 +126,10 @@ function colorizeJson(str) {
       const data = JSON.parse(text);
       const pretty = JSON.stringify(data, null, 2);
       // Coloriza só quando a saída é o terminal (pipe/arquivo fica limpo).
-      console.log(process.stdout.isTTY ? colorizeJson(pretty) : pretty);
+      output(process.stdout.isTTY ? colorizeJson(pretty) : pretty);
     } catch {
-      // Não é JSON: imprime o corpo cru.
-      console.log(text);
+      // Não é JSON: imprime o corpo cru (também paginado se for grande no TTY).
+      output(text);
     }
   } catch (err) {
     console.error(`falha na requisição: ${err.message}`);
